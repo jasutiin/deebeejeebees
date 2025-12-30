@@ -1,0 +1,1 @@
+got curious about how a database actually works under the hood so why not make my own. will make it easier for me to understand why doing a bunch of JOINS is inefficient, or why doing 'SELECT \*' is slow.
