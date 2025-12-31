@@ -5,6 +5,7 @@ import (
 	"os"
 
 	"github.com/jasutiin/deebeejeebees/internal/lexer"
+	"github.com/jasutiin/deebeejeebees/internal/parser"
 )
 
 func main() {
@@ -16,5 +17,6 @@ func main() {
 		for _, val := range tokens {
 			fmt.Println(val)
 		}
+		astTree := parser.ParseTokens(tokens)
 	}
 }
