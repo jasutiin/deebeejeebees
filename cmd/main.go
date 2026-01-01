@@ -18,5 +18,6 @@ func main() {
 			fmt.Println(val)
 		}
 		astTree := parser.ParseTokens(tokens)
+		astTree.PrintTree()
 	}
 }
