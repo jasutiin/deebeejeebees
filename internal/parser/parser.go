@@ -27,13 +27,11 @@ func ParseTokens(tokens []string) ast.ASTNode {
 			}
 
 		case "INSERT":
-			insertNode, err := parser.parseInsert() // parsing insert statements
+			err := parser.parseInsert() // parsing insert statements
 
 			if err != nil {
 				fmt.Println(err.Error())
 			}
-
-			rootNode.AddChild(insertNode)
 		case "CREATE":
 			createNode, err := parser.parseCreate() // parsing create statements
 
@@ -42,12 +40,15 @@ func ParseTokens(tokens []string) ast.ASTNode {
 			}
 
 			rootNode.AddChild(createNode)
+		default:
+			fmt.Println("could not determine the query type! must be one of: SELECT, INSERT, CREATE")
 	}
 
 	return rootNode
 }
 
 // parseSelect is responsible for parsing the SELECT query type
+// SELECT (col1, col2, ...) FROM table_name WHERE column_name (operator) (value);
 func (p *Parser) parseSelect() error {
 	selectNode := ast.ASTNode{ Data: "SELECT", Children: []ast.ASTNode{} }
 	colListNode, err := p.parseColumnList() // should return a whole branch
@@ -167,13 +168,185 @@ func (p *Parser) parseSemicolon() ast.ASTNode {
 	return semicolonNode
 }
 
-// parseInsert is responsible for parsing the SELECT query type
-func (p *Parser) parseInsert() (ast.ASTNode, error) {
-	node := ast.ASTNode{}
-	return node, nil
+// parseInsert is responsible for parsing the INSERT query type
+// INSERT INTO table_name (col1, col2, ...) VALUES (val1, val2, ...);
+func (p *Parser) parseInsert() error {
+	insertNode := ast.ASTNode{ Data: "INSERT", Children: []ast.ASTNode{} }
+	
+	intoNode, err := p.parseIntoNode()
+	if err != nil {
+		return err
+	}
+	
+	tableNameNode := p.parseTableName()
+	
+	openParenNode1, err := p.parseOpenParen()
+	if err != nil {
+		return err
+	}
+	
+	insertColListNode, err := p.parseInsertColumnList()
+	if err != nil {
+		return err
+	}
+	
+	closeParenNode1, err := p.parseCloseParen()
+	if err != nil {
+		return err
+	}
+	
+	valuesNode, err := p.parseValuesNode()
+	if err != nil {
+		return err
+	}
+	
+	openParenNode2, err := p.parseOpenParen()
+	if err != nil {
+		return err
+	}
+	
+	valueListNode, err := p.parseValueList()
+	if err != nil {
+		return err
+	}
+	
+	closeParenNode2, err := p.parseCloseParen()
+	if err != nil {
+		return err
+	}
+	
+	semicolonNode := p.parseSemicolon()
+	
+	p.rootNode.AddChild(insertNode)
+	p.rootNode.AddChild(intoNode)
+	p.rootNode.AddChild(tableNameNode)
+	p.rootNode.AddChild(openParenNode1)
+	p.rootNode.AddChild(insertColListNode)
+	p.rootNode.AddChild(closeParenNode1)
+	p.rootNode.AddChild(valuesNode)
+	p.rootNode.AddChild(openParenNode2)
+	p.rootNode.AddChild(valueListNode)
+	p.rootNode.AddChild(closeParenNode2)
+	p.rootNode.AddChild(semicolonNode)
+	return nil
 }
 
-// parseCreate is responsible for parsing the SELECT query type
+func (p *Parser) parseIntoNode() (ast.ASTNode, error) {
+	nextToken := p.peek()
+	if nextToken != "INTO" {
+		return ast.ASTNode{}, fmt.Errorf("expected 'INTO' but got '%s'", nextToken)
+	}
+	p.incrementPosition()
+	intoNode := ast.ASTNode{ Data: p.tokens[p.pos], Children: []ast.ASTNode{} }
+	return intoNode, nil
+}
+
+func (p *Parser) parseOpenParen() (ast.ASTNode, error) {
+	nextToken := p.peek()
+	if nextToken != "(" {
+		return ast.ASTNode{}, fmt.Errorf("expected '(' but got '%s'", nextToken)
+	}
+	p.incrementPosition()
+	openParenNode := ast.ASTNode{ Data: p.tokens[p.pos], Children: []ast.ASTNode{} }
+	return openParenNode, nil
+}
+
+func (p *Parser) parseCloseParen() (ast.ASTNode, error) {
+	nextToken := p.peek()
+	if nextToken != ")" {
+		return ast.ASTNode{}, fmt.Errorf("expected ')' but got '%s'", nextToken)
+	}
+	p.incrementPosition()
+	closeParenNode := ast.ASTNode{ Data: p.tokens[p.pos], Children: []ast.ASTNode{} }
+	return closeParenNode, nil
+}
+
+func (p *Parser) parseInsertColumnList() (ast.ASTNode, error) {
+	nextToken := p.peek()
+	
+	if nextToken == ")" {
+		return ast.ASTNode{}, errors.New("missing at least one column name in INSERT!")
+	}
+	
+	columnListNode := ast.ASTNode{ Data: "<column_list>", Children: []ast.ASTNode{} }
+	p.incrementPosition()
+	
+	columnName := p.parseColumnName()
+	columnListNode.AddChild(columnName)
+	p.parseInsertColumnListTail(&columnListNode)
+	
+	return columnListNode, nil
+}
+
+func (p *Parser) parseInsertColumnListTail(parentNode *ast.ASTNode) {
+	columnListTailNode := ast.ASTNode{ Data: "<column_list_tail>", Children: []ast.ASTNode{} }
+	nextToken := p.peek()
+	
+	if nextToken == "," {
+		p.incrementPosition()
+		commaNode := ast.ASTNode{ Data: p.tokens[p.pos], Children: []ast.ASTNode{} }
+		columnListTailNode.AddChild(commaNode)
+		p.incrementPosition()
+		columnName := p.parseColumnName()
+		columnListTailNode.AddChild(columnName)
+		p.parseInsertColumnListTail(&columnListTailNode)
+	}
+	
+	parentNode.AddChild(columnListTailNode)
+}
+
+func (p *Parser) parseValuesNode() (ast.ASTNode, error) {
+	nextToken := p.peek()
+	if nextToken != "VALUES" {
+		return ast.ASTNode{}, fmt.Errorf("expected 'VALUES' but got '%s'", nextToken)
+	}
+	p.incrementPosition()
+	valuesNode := ast.ASTNode{ Data: p.tokens[p.pos], Children: []ast.ASTNode{} }
+	return valuesNode, nil
+}
+
+func (p *Parser) parseValueList() (ast.ASTNode, error) {
+	nextToken := p.peek()
+	
+	if nextToken == ")" {
+		return ast.ASTNode{}, errors.New("missing at least one value in VALUES!")
+	}
+	
+	valueListNode := ast.ASTNode{ Data: "<value_list>", Children: []ast.ASTNode{} }
+	p.incrementPosition()
+	
+	value := p.parseValue()
+	valueListNode.AddChild(value)
+	p.parseValueListTail(&valueListNode)
+	
+	return valueListNode, nil
+}
+
+func (p *Parser) parseValue() ast.ASTNode {
+	valueNonTerminal := ast.ASTNode{ Data: "<value>", Children: []ast.ASTNode{} }
+	value := ast.ASTNode{ Data: p.tokens[p.pos], Children: []ast.ASTNode{} }
+	valueNonTerminal.AddChild(value)
+	return valueNonTerminal
+}
+
+func (p *Parser) parseValueListTail(parentNode *ast.ASTNode) {
+	valueListTailNode := ast.ASTNode{ Data: "<value_list_tail>", Children: []ast.ASTNode{} }
+	nextToken := p.peek()
+	
+	if nextToken == "," {
+		p.incrementPosition()
+		commaNode := ast.ASTNode{ Data: p.tokens[p.pos], Children: []ast.ASTNode{} }
+		valueListTailNode.AddChild(commaNode)
+		p.incrementPosition()
+		value := p.parseValue()
+		valueListTailNode.AddChild(value)
+		p.parseValueListTail(&valueListTailNode)
+	}
+	
+	parentNode.AddChild(valueListTailNode)
+}
+
+// parseCreate is responsible for parsing the CREATE query type
 func (p *Parser) parseCreate() (ast.ASTNode, error) {
 	node := ast.ASTNode{}
 	return node, nil
