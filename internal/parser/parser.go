@@ -51,6 +51,8 @@ func ParseTokens(tokens []string) ast.ASTNode {
 func (p *Parser) parseSelect() error {
 	selectNode := ast.ASTNode{ Data: "SELECT", Children: []ast.ASTNode{} }
 	colListNode, err := p.parseColumnList() // should return a whole branch
+	fromNode := p.parseFromNode()
+	tableNameNode := p.parseTableName()
 	
 	if err != nil {
 		return err
@@ -58,7 +60,8 @@ func (p *Parser) parseSelect() error {
 
 	p.rootNode.AddChild(selectNode)
 	p.rootNode.AddChild(colListNode)
-	// tableListNode := p.parseTableList()
+	p.rootNode.AddChild(fromNode)
+	p.rootNode.AddChild(tableNameNode)
 	return nil
 }
 
@@ -102,6 +105,20 @@ func (p *Parser) parseColumnListTail(parentNode *ast.ASTNode) ast.ASTNode {
 	
 	parentNode.AddChild(columnListTailNode)
 	return columnListTailNode
+}
+
+func (p *Parser) parseFromNode() ast.ASTNode {
+	p.incrementPosition()
+	fromNode := ast.ASTNode{ Data: p.tokens[p.pos], Children: []ast.ASTNode{} }
+	return fromNode
+}
+
+func (p *Parser) parseTableName() ast.ASTNode {
+	tableNameNoneTerminal := ast.ASTNode{ Data: "<table_name>", Children: []ast.ASTNode{} }
+	p.incrementPosition()
+	tableNameNode := ast.ASTNode{ Data: p.tokens[p.pos], Children: []ast.ASTNode{} }
+	tableNameNoneTerminal.AddChild(tableNameNode)
+	return tableNameNoneTerminal
 }
 
 // parseInsert is responsible for parsing the SELECT query type
