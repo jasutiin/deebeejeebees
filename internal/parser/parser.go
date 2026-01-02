@@ -4,17 +4,17 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/jasutiin/deebeejeebees/internal/parser/ast"
+	"github.com/jasutiin/deebeejeebees/internal/parser/narytree"
 )
 
 type Parser struct {
 	tokens []string
 	pos int
-	rootNode *ast.ASTNode
+	rootNode *narytree.Node
 }
 
-func ParseTokens(tokens []string) ast.ASTNode {
-	rootNode := ast.ASTNode{ Data: "<query>", Children: []ast.ASTNode{} }
+func ParseTokens(tokens []string) narytree.Node {
+	rootNode := narytree.Node{ Data: "<query>", Children: []narytree.Node{} }
 	parser := Parser{ tokens: tokens, pos: 0, rootNode: &rootNode }
 	queryType := tokens[parser.pos]
 
@@ -48,7 +48,7 @@ func ParseTokens(tokens []string) ast.ASTNode {
 // parseSelect is responsible for parsing the SELECT query type
 // SELECT (col1, col2, ...) FROM table_name WHERE column_name (operator) (value);
 func (p *Parser) parseSelect() error {
-	selectNode := ast.ASTNode{ Data: "SELECT", Children: []ast.ASTNode{} }
+	selectNode := narytree.Node{ Data: "SELECT", Children: []narytree.Node{} }
 	colListNode, err := p.parseColumnList() // should return a whole branch
 	fromNode := p.parseFromNode()
 	tableNameNode := p.parseTableName()
@@ -68,14 +68,14 @@ func (p *Parser) parseSelect() error {
 	return nil
 }
 
-func (p *Parser) parseColumnList() (ast.ASTNode, error) {
+func (p *Parser) parseColumnList() (narytree.Node, error) {
 	nextToken := p.peek()
 
 	if nextToken == "FROM" {
-		return ast.ASTNode{}, errors.New("missing at least one column name after SELECT!")
+		return narytree.Node{}, errors.New("missing at lenarytree one column name after SELECT!")
 	}
 
-	columnListNode := ast.ASTNode { Data: "<column_list>", Children: []ast.ASTNode{} }
+	columnListNode := narytree.Node { Data: "<column_list>", Children: []narytree.Node{} }
 	p.incrementPosition()
 
 	columnName := p.parseColumnName()
@@ -85,20 +85,20 @@ func (p *Parser) parseColumnList() (ast.ASTNode, error) {
 	return columnListNode, nil
 }
 
-func (p *Parser) parseColumnName() ast.ASTNode {
-	columnNameNonTerminal := ast.ASTNode{ Data: "<column_name>", Children: []ast.ASTNode{} }
-	columnName := ast.ASTNode{ Data: p.tokens[p.pos], Children: []ast.ASTNode{} }
+func (p *Parser) parseColumnName() narytree.Node {
+	columnNameNonTerminal := narytree.Node{ Data: "<column_name>", Children: []narytree.Node{} }
+	columnName := narytree.Node{ Data: p.tokens[p.pos], Children: []narytree.Node{} }
 	columnNameNonTerminal.Children = append(columnNameNonTerminal.Children, columnName)
 	return columnNameNonTerminal
 }
 
-func (p *Parser) parseColumnListTail(parentNode *ast.ASTNode) ast.ASTNode {
-	columnListTailNode := ast.ASTNode{ Data: "<column_list_tail>", Children: []ast.ASTNode{} }
+func (p *Parser) parseColumnListTail(parentNode *narytree.Node) narytree.Node {
+	columnListTailNode := narytree.Node{ Data: "<column_list_tail>", Children: []narytree.Node{} }
 	nextToken := p.peek()
 	
 	if nextToken == "," {
 		p.incrementPosition()
-		commaNode := ast.ASTNode{ Data: p.tokens[p.pos], Children: []ast.ASTNode{} }
+		commaNode := narytree.Node{ Data: p.tokens[p.pos], Children: []narytree.Node{} }
 		columnListTailNode.AddChild(commaNode)
 		p.incrementPosition()
 		columnName := p.parseColumnName()
@@ -110,22 +110,22 @@ func (p *Parser) parseColumnListTail(parentNode *ast.ASTNode) ast.ASTNode {
 	return columnListTailNode
 }
 
-func (p *Parser) parseFromNode() ast.ASTNode {
+func (p *Parser) parseFromNode() narytree.Node {
 	p.incrementPosition()
-	fromNode := ast.ASTNode{ Data: p.tokens[p.pos], Children: []ast.ASTNode{} }
+	fromNode := narytree.Node{ Data: p.tokens[p.pos], Children: []narytree.Node{} }
 	return fromNode
 }
 
-func (p *Parser) parseTableName() ast.ASTNode {
-	tableNameNoneTerminal := ast.ASTNode{ Data: "<table_name>", Children: []ast.ASTNode{} }
+func (p *Parser) parseTableName() narytree.Node {
+	tableNameNoneTerminal := narytree.Node{ Data: "<table_name>", Children: []narytree.Node{} }
 	p.incrementPosition()
-	tableNameNode := ast.ASTNode{ Data: p.tokens[p.pos], Children: []ast.ASTNode{} }
+	tableNameNode := narytree.Node{ Data: p.tokens[p.pos], Children: []narytree.Node{} }
 	tableNameNoneTerminal.AddChild(tableNameNode)
 	return tableNameNoneTerminal
 }
 
-func (p *Parser) parseOptionalWhere() ast.ASTNode {
-	optionalWhereNode := ast.ASTNode{ Data: "<optional_where>", Children: []ast.ASTNode{} }
+func (p *Parser) parseOptionalWhere() narytree.Node {
+	optionalWhereNode := narytree.Node{ Data: "<optional_where>", Children: []narytree.Node{} }
 	
 	nextToken := p.peek()
 	if nextToken != "WHERE" {
@@ -133,7 +133,7 @@ func (p *Parser) parseOptionalWhere() ast.ASTNode {
 	}
 	
 	p.incrementPosition()
-	whereNode := ast.ASTNode{ Data: p.tokens[p.pos], Children: []ast.ASTNode{} }
+	whereNode := narytree.Node{ Data: p.tokens[p.pos], Children: []narytree.Node{} }
 	optionalWhereNode.AddChild(whereNode)
 	
 	conditionNode := p.parseCondition()
@@ -142,34 +142,34 @@ func (p *Parser) parseOptionalWhere() ast.ASTNode {
 	return optionalWhereNode
 }
 
-func (p *Parser) parseCondition() ast.ASTNode {
-	conditionNode := ast.ASTNode{ Data: "<condition>", Children: []ast.ASTNode{} }
+func (p *Parser) parseCondition() narytree.Node {
+	conditionNode := narytree.Node{ Data: "<condition>", Children: []narytree.Node{} }
 	
 	p.incrementPosition()
-	leftOperand := ast.ASTNode{ Data: p.tokens[p.pos], Children: []ast.ASTNode{} }
+	leftOperand := narytree.Node{ Data: p.tokens[p.pos], Children: []narytree.Node{} }
 	conditionNode.AddChild(leftOperand)
 	
 	p.incrementPosition()
-	operator := ast.ASTNode{ Data: p.tokens[p.pos], Children: []ast.ASTNode{} }
+	operator := narytree.Node{ Data: p.tokens[p.pos], Children: []narytree.Node{} }
 	conditionNode.AddChild(operator)
 	
 	p.incrementPosition()
-	rightOperand := ast.ASTNode{ Data: p.tokens[p.pos], Children: []ast.ASTNode{} }
+	rightOperand := narytree.Node{ Data: p.tokens[p.pos], Children: []narytree.Node{} }
 	conditionNode.AddChild(rightOperand)
 	
 	return conditionNode
 }
 
-func (p *Parser) parseSemicolon() ast.ASTNode {
+func (p *Parser) parseSemicolon() narytree.Node {
 	p.incrementPosition()
-	semicolonNode := ast.ASTNode{ Data: p.tokens[p.pos], Children: []ast.ASTNode{} }
+	semicolonNode := narytree.Node{ Data: p.tokens[p.pos], Children: []narytree.Node{} }
 	return semicolonNode
 }
 
 // parseInsert is responsible for parsing the INSERT query type
 // INSERT INTO table_name (col1, col2, ...) VALUES (val1, val2, ...);
 func (p *Parser) parseInsert() error {
-	insertNode := ast.ASTNode{ Data: "INSERT", Children: []ast.ASTNode{} }
+	insertNode := narytree.Node{ Data: "INSERT", Children: []narytree.Node{} }
 	
 	intoNode, err := p.parseIntoNode()
 	if err != nil {
@@ -229,44 +229,44 @@ func (p *Parser) parseInsert() error {
 	return nil
 }
 
-func (p *Parser) parseIntoNode() (ast.ASTNode, error) {
+func (p *Parser) parseIntoNode() (narytree.Node, error) {
 	nextToken := p.peek()
 	if nextToken != "INTO" {
-		return ast.ASTNode{}, fmt.Errorf("expected 'INTO' but got '%s'", nextToken)
+		return narytree.Node{}, fmt.Errorf("expected 'INTO' but got '%s'", nextToken)
 	}
 	p.incrementPosition()
-	intoNode := ast.ASTNode{ Data: p.tokens[p.pos], Children: []ast.ASTNode{} }
+	intoNode := narytree.Node{ Data: p.tokens[p.pos], Children: []narytree.Node{} }
 	return intoNode, nil
 }
 
-func (p *Parser) parseOpenParen() (ast.ASTNode, error) {
+func (p *Parser) parseOpenParen() (narytree.Node, error) {
 	nextToken := p.peek()
 	if nextToken != "(" {
-		return ast.ASTNode{}, fmt.Errorf("expected '(' but got '%s'", nextToken)
+		return narytree.Node{}, fmt.Errorf("expected '(' but got '%s'", nextToken)
 	}
 	p.incrementPosition()
-	openParenNode := ast.ASTNode{ Data: p.tokens[p.pos], Children: []ast.ASTNode{} }
+	openParenNode := narytree.Node{ Data: p.tokens[p.pos], Children: []narytree.Node{} }
 	return openParenNode, nil
 }
 
-func (p *Parser) parseCloseParen() (ast.ASTNode, error) {
+func (p *Parser) parseCloseParen() (narytree.Node, error) {
 	nextToken := p.peek()
 	if nextToken != ")" {
-		return ast.ASTNode{}, fmt.Errorf("expected ')' but got '%s'", nextToken)
+		return narytree.Node{}, fmt.Errorf("expected ')' but got '%s'", nextToken)
 	}
 	p.incrementPosition()
-	closeParenNode := ast.ASTNode{ Data: p.tokens[p.pos], Children: []ast.ASTNode{} }
+	closeParenNode := narytree.Node{ Data: p.tokens[p.pos], Children: []narytree.Node{} }
 	return closeParenNode, nil
 }
 
-func (p *Parser) parseInsertColumnList() (ast.ASTNode, error) {
+func (p *Parser) parseInsertColumnList() (narytree.Node, error) {
 	nextToken := p.peek()
 	
 	if nextToken == ")" {
-		return ast.ASTNode{}, errors.New("missing at least one column name in INSERT!")
+		return narytree.Node{}, errors.New("missing at lenarytree one column name in INSERT!")
 	}
 	
-	columnListNode := ast.ASTNode{ Data: "<column_list>", Children: []ast.ASTNode{} }
+	columnListNode := narytree.Node{ Data: "<column_list>", Children: []narytree.Node{} }
 	p.incrementPosition()
 	
 	columnName := p.parseColumnName()
@@ -276,13 +276,13 @@ func (p *Parser) parseInsertColumnList() (ast.ASTNode, error) {
 	return columnListNode, nil
 }
 
-func (p *Parser) parseInsertColumnListTail(parentNode *ast.ASTNode) {
-	columnListTailNode := ast.ASTNode{ Data: "<column_list_tail>", Children: []ast.ASTNode{} }
+func (p *Parser) parseInsertColumnListTail(parentNode *narytree.Node) {
+	columnListTailNode := narytree.Node{ Data: "<column_list_tail>", Children: []narytree.Node{} }
 	nextToken := p.peek()
 	
 	if nextToken == "," {
 		p.incrementPosition()
-		commaNode := ast.ASTNode{ Data: p.tokens[p.pos], Children: []ast.ASTNode{} }
+		commaNode := narytree.Node{ Data: p.tokens[p.pos], Children: []narytree.Node{} }
 		columnListTailNode.AddChild(commaNode)
 		p.incrementPosition()
 		columnName := p.parseColumnName()
@@ -293,24 +293,24 @@ func (p *Parser) parseInsertColumnListTail(parentNode *ast.ASTNode) {
 	parentNode.AddChild(columnListTailNode)
 }
 
-func (p *Parser) parseValuesNode() (ast.ASTNode, error) {
+func (p *Parser) parseValuesNode() (narytree.Node, error) {
 	nextToken := p.peek()
 	if nextToken != "VALUES" {
-		return ast.ASTNode{}, fmt.Errorf("expected 'VALUES' but got '%s'", nextToken)
+		return narytree.Node{}, fmt.Errorf("expected 'VALUES' but got '%s'", nextToken)
 	}
 	p.incrementPosition()
-	valuesNode := ast.ASTNode{ Data: p.tokens[p.pos], Children: []ast.ASTNode{} }
+	valuesNode := narytree.Node{ Data: p.tokens[p.pos], Children: []narytree.Node{} }
 	return valuesNode, nil
 }
 
-func (p *Parser) parseValueList() (ast.ASTNode, error) {
+func (p *Parser) parseValueList() (narytree.Node, error) {
 	nextToken := p.peek()
 	
 	if nextToken == ")" {
-		return ast.ASTNode{}, errors.New("missing at least one value in VALUES!")
+		return narytree.Node{}, errors.New("missing at lenarytree one value in VALUES!")
 	}
 	
-	valueListNode := ast.ASTNode{ Data: "<value_list>", Children: []ast.ASTNode{} }
+	valueListNode := narytree.Node{ Data: "<value_list>", Children: []narytree.Node{} }
 	p.incrementPosition()
 	
 	value := p.parseValue()
@@ -320,20 +320,20 @@ func (p *Parser) parseValueList() (ast.ASTNode, error) {
 	return valueListNode, nil
 }
 
-func (p *Parser) parseValue() ast.ASTNode {
-	valueNonTerminal := ast.ASTNode{ Data: "<value>", Children: []ast.ASTNode{} }
-	value := ast.ASTNode{ Data: p.tokens[p.pos], Children: []ast.ASTNode{} }
+func (p *Parser) parseValue() narytree.Node {
+	valueNonTerminal := narytree.Node{ Data: "<value>", Children: []narytree.Node{} }
+	value := narytree.Node{ Data: p.tokens[p.pos], Children: []narytree.Node{} }
 	valueNonTerminal.AddChild(value)
 	return valueNonTerminal
 }
 
-func (p *Parser) parseValueListTail(parentNode *ast.ASTNode) {
-	valueListTailNode := ast.ASTNode{ Data: "<value_list_tail>", Children: []ast.ASTNode{} }
+func (p *Parser) parseValueListTail(parentNode *narytree.Node) {
+	valueListTailNode := narytree.Node{ Data: "<value_list_tail>", Children: []narytree.Node{} }
 	nextToken := p.peek()
 	
 	if nextToken == "," {
 		p.incrementPosition()
-		commaNode := ast.ASTNode{ Data: p.tokens[p.pos], Children: []ast.ASTNode{} }
+		commaNode := narytree.Node{ Data: p.tokens[p.pos], Children: []narytree.Node{} }
 		valueListTailNode.AddChild(commaNode)
 		p.incrementPosition()
 		value := p.parseValue()
@@ -347,7 +347,7 @@ func (p *Parser) parseValueListTail(parentNode *ast.ASTNode) {
 // parseCreate is responsible for parsing the CREATE query type
 // CREATE TABLE table_name (col1 datatype1, col2 datatype2, ...);
 func (p *Parser) parseCreate() error {
-	createNode := ast.ASTNode{ Data: "CREATE", Children: []ast.ASTNode{} }
+	createNode := narytree.Node{ Data: "CREATE", Children: []narytree.Node{} }
 	
 	tableKeywordNode, err := p.parseTableKeyword()
 	if err != nil {
@@ -383,24 +383,24 @@ func (p *Parser) parseCreate() error {
 	return nil
 }
 
-func (p *Parser) parseTableKeyword() (ast.ASTNode, error) {
+func (p *Parser) parseTableKeyword() (narytree.Node, error) {
 	nextToken := p.peek()
 	if nextToken != "TABLE" {
-		return ast.ASTNode{}, fmt.Errorf("expected 'TABLE' but got '%s'", nextToken)
+		return narytree.Node{}, fmt.Errorf("expected 'TABLE' but got '%s'", nextToken)
 	}
 	p.incrementPosition()
-	tableKeywordNode := ast.ASTNode{ Data: p.tokens[p.pos], Children: []ast.ASTNode{} }
+	tableKeywordNode := narytree.Node{ Data: p.tokens[p.pos], Children: []narytree.Node{} }
 	return tableKeywordNode, nil
 }
 
-func (p *Parser) parseColumnDefsList() (ast.ASTNode, error) {
+func (p *Parser) parseColumnDefsList() (narytree.Node, error) {
 	nextToken := p.peek()
 	
 	if nextToken == ")" {
-		return ast.ASTNode{}, errors.New("missing at least one column definition in CREATE TABLE!")
+		return narytree.Node{}, errors.New("missing at lenarytree one column definition in CREATE TABLE!")
 	}
 	
-	columnDefsNode := ast.ASTNode{ Data: "<column_defs_list>", Children: []ast.ASTNode{} }
+	columnDefsNode := narytree.Node{ Data: "<column_defs_list>", Children: []narytree.Node{} }
 	
 	columnDef := p.parseColumnDef()
 	columnDefsNode.AddChild(columnDef)
@@ -409,11 +409,11 @@ func (p *Parser) parseColumnDefsList() (ast.ASTNode, error) {
 	return columnDefsNode, nil
 }
 
-func (p *Parser) parseColumnDef() ast.ASTNode {
-	columnDefNode := ast.ASTNode{ Data: "<column_def>", Children: []ast.ASTNode{} }
+func (p *Parser) parseColumnDef() narytree.Node {
+	columnDefNode := narytree.Node{ Data: "<column_def>", Children: []narytree.Node{} }
 	
 	p.incrementPosition()
-	columnNameNode := ast.ASTNode{ Data: p.tokens[p.pos], Children: []ast.ASTNode{} }
+	columnNameNode := narytree.Node{ Data: p.tokens[p.pos], Children: []narytree.Node{} }
 	columnDefNode.AddChild(columnNameNode)
 	
 	p.incrementPosition()
@@ -423,36 +423,36 @@ func (p *Parser) parseColumnDef() ast.ASTNode {
 	return columnDefNode
 }
 
-func (p *Parser) parseDataType() ast.ASTNode {
-	dataTypeNonTerminal := ast.ASTNode{ Data: "<data_type>", Children: []ast.ASTNode{} }
-	dataType := ast.ASTNode{ Data: p.tokens[p.pos], Children: []ast.ASTNode{} }
+func (p *Parser) parseDataType() narytree.Node {
+	dataTypeNonTerminal := narytree.Node{ Data: "<data_type>", Children: []narytree.Node{} }
+	dataType := narytree.Node{ Data: p.tokens[p.pos], Children: []narytree.Node{} }
 	dataTypeNonTerminal.AddChild(dataType)
 	
 	nextToken := p.peek()
 	if nextToken == "(" {
 		p.incrementPosition()
-		openParenNode := ast.ASTNode{ Data: p.tokens[p.pos], Children: []ast.ASTNode{} }
+		openParenNode := narytree.Node{ Data: p.tokens[p.pos], Children: []narytree.Node{} }
 		dataTypeNonTerminal.AddChild(openParenNode)
 		
 		p.incrementPosition()
-		sizeNode := ast.ASTNode{ Data: p.tokens[p.pos], Children: []ast.ASTNode{} }
+		sizeNode := narytree.Node{ Data: p.tokens[p.pos], Children: []narytree.Node{} }
 		dataTypeNonTerminal.AddChild(sizeNode)
 		
 		p.incrementPosition()
-		closeParenNode := ast.ASTNode{ Data: p.tokens[p.pos], Children: []ast.ASTNode{} }
+		closeParenNode := narytree.Node{ Data: p.tokens[p.pos], Children: []narytree.Node{} }
 		dataTypeNonTerminal.AddChild(closeParenNode)
 	}
 	
 	return dataTypeNonTerminal
 }
 
-func (p *Parser) parseColumnDefsListTail(parentNode *ast.ASTNode) {
-	columnDefsListTailNode := ast.ASTNode{ Data: "<column_defs_list_tail>", Children: []ast.ASTNode{} }
+func (p *Parser) parseColumnDefsListTail(parentNode *narytree.Node) {
+	columnDefsListTailNode := narytree.Node{ Data: "<column_defs_list_tail>", Children: []narytree.Node{} }
 	nextToken := p.peek()
 	
 	if nextToken == "," {
 		p.incrementPosition()
-		commaNode := ast.ASTNode{ Data: p.tokens[p.pos], Children: []ast.ASTNode{} }
+		commaNode := narytree.Node{ Data: p.tokens[p.pos], Children: []narytree.Node{} }
 		columnDefsListTailNode.AddChild(commaNode)
 		
 		columnDef := p.parseColumnDef()

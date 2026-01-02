@@ -1,28 +1,28 @@
-package ast
+package narytree
 
-type ASTNode struct {
+type Node struct {
 	Data     string
-	Children []ASTNode
+	Children []Node
 }
 
-func CreateNewNode(data string) ASTNode {
-	node := ASTNode{
+func CreateNewNode(data string) Node {
+	node := Node{
 		Data:     data,
-		Children: []ASTNode{},
+		Children: []Node{},
 	}
 
 	return node
 }
 
-func (n *ASTNode) AddChild(node ASTNode) {
+func (n *Node) AddChild(node Node) {
 	n.Children = append(n.Children, node)
 }
 
-func (n *ASTNode) PrintTree() {
+func (n *Node) PrintTree() {
 	n.printTreeHelper(0)
 }
 
-func (n *ASTNode) printTreeHelper(indent int) {
+func (n *Node) printTreeHelper(indent int) {
 	for i := 0; i < indent; i++ {
 		print("  ")
 	}
