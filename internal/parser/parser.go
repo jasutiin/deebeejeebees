@@ -33,13 +33,11 @@ func ParseTokens(tokens []string) ast.ASTNode {
 				fmt.Println(err.Error())
 			}
 		case "CREATE":
-			createNode, err := parser.parseCreate() // parsing create statements
+			err := parser.parseCreate() // parsing create statements
 
 			if err != nil {
 				fmt.Println(err.Error())
 			}
-
-			rootNode.AddChild(createNode)
 		default:
 			fmt.Println("could not determine the query type! must be one of: SELECT, INSERT, CREATE")
 	}
@@ -347,9 +345,122 @@ func (p *Parser) parseValueListTail(parentNode *ast.ASTNode) {
 }
 
 // parseCreate is responsible for parsing the CREATE query type
-func (p *Parser) parseCreate() (ast.ASTNode, error) {
-	node := ast.ASTNode{}
-	return node, nil
+// CREATE TABLE table_name (col1 datatype1, col2 datatype2, ...);
+func (p *Parser) parseCreate() error {
+	createNode := ast.ASTNode{ Data: "CREATE", Children: []ast.ASTNode{} }
+	
+	tableKeywordNode, err := p.parseTableKeyword()
+	if err != nil {
+		return err
+	}
+
+	tableNameNode := p.parseTableName()
+
+	openParenNode, err := p.parseOpenParen()
+	if err != nil {
+		return err
+	}
+
+	columnDefsNode, err := p.parseColumnDefsList()
+	if err != nil {
+		return err
+	}
+
+	closeParenNode, err := p.parseCloseParen()
+	if err != nil {
+		return err
+	}
+
+	semicolonNode := p.parseSemicolon()
+	
+	p.rootNode.AddChild(createNode)
+	p.rootNode.AddChild(tableKeywordNode)
+	p.rootNode.AddChild(tableNameNode)
+	p.rootNode.AddChild(openParenNode)
+	p.rootNode.AddChild(columnDefsNode)
+	p.rootNode.AddChild(closeParenNode)
+	p.rootNode.AddChild(semicolonNode)
+	return nil
+}
+
+func (p *Parser) parseTableKeyword() (ast.ASTNode, error) {
+	nextToken := p.peek()
+	if nextToken != "TABLE" {
+		return ast.ASTNode{}, fmt.Errorf("expected 'TABLE' but got '%s'", nextToken)
+	}
+	p.incrementPosition()
+	tableKeywordNode := ast.ASTNode{ Data: p.tokens[p.pos], Children: []ast.ASTNode{} }
+	return tableKeywordNode, nil
+}
+
+func (p *Parser) parseColumnDefsList() (ast.ASTNode, error) {
+	nextToken := p.peek()
+	
+	if nextToken == ")" {
+		return ast.ASTNode{}, errors.New("missing at least one column definition in CREATE TABLE!")
+	}
+	
+	columnDefsNode := ast.ASTNode{ Data: "<column_defs_list>", Children: []ast.ASTNode{} }
+	
+	columnDef := p.parseColumnDef()
+	columnDefsNode.AddChild(columnDef)
+	p.parseColumnDefsListTail(&columnDefsNode)
+	
+	return columnDefsNode, nil
+}
+
+func (p *Parser) parseColumnDef() ast.ASTNode {
+	columnDefNode := ast.ASTNode{ Data: "<column_def>", Children: []ast.ASTNode{} }
+	
+	p.incrementPosition()
+	columnNameNode := ast.ASTNode{ Data: p.tokens[p.pos], Children: []ast.ASTNode{} }
+	columnDefNode.AddChild(columnNameNode)
+	
+	p.incrementPosition()
+	dataTypeNode := p.parseDataType()
+	columnDefNode.AddChild(dataTypeNode)
+	
+	return columnDefNode
+}
+
+func (p *Parser) parseDataType() ast.ASTNode {
+	dataTypeNonTerminal := ast.ASTNode{ Data: "<data_type>", Children: []ast.ASTNode{} }
+	dataType := ast.ASTNode{ Data: p.tokens[p.pos], Children: []ast.ASTNode{} }
+	dataTypeNonTerminal.AddChild(dataType)
+	
+	nextToken := p.peek()
+	if nextToken == "(" {
+		p.incrementPosition()
+		openParenNode := ast.ASTNode{ Data: p.tokens[p.pos], Children: []ast.ASTNode{} }
+		dataTypeNonTerminal.AddChild(openParenNode)
+		
+		p.incrementPosition()
+		sizeNode := ast.ASTNode{ Data: p.tokens[p.pos], Children: []ast.ASTNode{} }
+		dataTypeNonTerminal.AddChild(sizeNode)
+		
+		p.incrementPosition()
+		closeParenNode := ast.ASTNode{ Data: p.tokens[p.pos], Children: []ast.ASTNode{} }
+		dataTypeNonTerminal.AddChild(closeParenNode)
+	}
+	
+	return dataTypeNonTerminal
+}
+
+func (p *Parser) parseColumnDefsListTail(parentNode *ast.ASTNode) {
+	columnDefsListTailNode := ast.ASTNode{ Data: "<column_defs_list_tail>", Children: []ast.ASTNode{} }
+	nextToken := p.peek()
+	
+	if nextToken == "," {
+		p.incrementPosition()
+		commaNode := ast.ASTNode{ Data: p.tokens[p.pos], Children: []ast.ASTNode{} }
+		columnDefsListTailNode.AddChild(commaNode)
+		
+		columnDef := p.parseColumnDef()
+		columnDefsListTailNode.AddChild(columnDef)
+		p.parseColumnDefsListTail(&columnDefsListTailNode)
+	}
+	
+	parentNode.AddChild(columnDefsListTailNode)
 }
 
 func (p *Parser) incrementPosition() {
