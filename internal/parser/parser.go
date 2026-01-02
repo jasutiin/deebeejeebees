@@ -53,6 +53,8 @@ func (p *Parser) parseSelect() error {
 	colListNode, err := p.parseColumnList() // should return a whole branch
 	fromNode := p.parseFromNode()
 	tableNameNode := p.parseTableName()
+	optionalWhereNode := p.parseOptionalWhere()
+	semicolonNode := p.parseSemicolon()
 	
 	if err != nil {
 		return err
@@ -62,6 +64,8 @@ func (p *Parser) parseSelect() error {
 	p.rootNode.AddChild(colListNode)
 	p.rootNode.AddChild(fromNode)
 	p.rootNode.AddChild(tableNameNode)
+	p.rootNode.AddChild(optionalWhereNode)
+	p.rootNode.AddChild(semicolonNode)
 	return nil
 }
 
@@ -119,6 +123,48 @@ func (p *Parser) parseTableName() ast.ASTNode {
 	tableNameNode := ast.ASTNode{ Data: p.tokens[p.pos], Children: []ast.ASTNode{} }
 	tableNameNoneTerminal.AddChild(tableNameNode)
 	return tableNameNoneTerminal
+}
+
+func (p *Parser) parseOptionalWhere() ast.ASTNode {
+	optionalWhereNode := ast.ASTNode{ Data: "<optional_where>", Children: []ast.ASTNode{} }
+	
+	nextToken := p.peek()
+	if nextToken != "WHERE" {
+		return optionalWhereNode
+	}
+	
+	p.incrementPosition()
+	whereNode := ast.ASTNode{ Data: p.tokens[p.pos], Children: []ast.ASTNode{} }
+	optionalWhereNode.AddChild(whereNode)
+	
+	conditionNode := p.parseCondition()
+	optionalWhereNode.AddChild(conditionNode)
+	
+	return optionalWhereNode
+}
+
+func (p *Parser) parseCondition() ast.ASTNode {
+	conditionNode := ast.ASTNode{ Data: "<condition>", Children: []ast.ASTNode{} }
+	
+	p.incrementPosition()
+	leftOperand := ast.ASTNode{ Data: p.tokens[p.pos], Children: []ast.ASTNode{} }
+	conditionNode.AddChild(leftOperand)
+	
+	p.incrementPosition()
+	operator := ast.ASTNode{ Data: p.tokens[p.pos], Children: []ast.ASTNode{} }
+	conditionNode.AddChild(operator)
+	
+	p.incrementPosition()
+	rightOperand := ast.ASTNode{ Data: p.tokens[p.pos], Children: []ast.ASTNode{} }
+	conditionNode.AddChild(rightOperand)
+	
+	return conditionNode
+}
+
+func (p *Parser) parseSemicolon() ast.ASTNode {
+	p.incrementPosition()
+	semicolonNode := ast.ASTNode{ Data: p.tokens[p.pos], Children: []ast.ASTNode{} }
+	return semicolonNode
 }
 
 // parseInsert is responsible for parsing the SELECT query type
