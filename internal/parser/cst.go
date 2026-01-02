@@ -13,27 +13,27 @@ type Parser struct {
 	rootNode *narytree.Node
 }
 
-func ParseTokens(tokens []string) narytree.Node {
+func ParseTokensToCST(tokens []string) narytree.Node {
 	rootNode := narytree.Node{ Data: "<query>", Children: []narytree.Node{} }
 	parser := Parser{ tokens: tokens, pos: 0, rootNode: &rootNode }
 	queryType := tokens[parser.pos]
 
 	switch queryType {
 		case "SELECT":
-			err := parser.parseSelect() // parsing select statements
+			err := parser.parseSelectCST() // parsing select statements
 
 			if err != nil {
 				fmt.Println(err.Error())
 			}
 
 		case "INSERT":
-			err := parser.parseInsert() // parsing insert statements
+			err := parser.parseInsertCST() // parsing insert statements
 
 			if err != nil {
 				fmt.Println(err.Error())
 			}
 		case "CREATE":
-			err := parser.parseCreate() // parsing create statements
+			err := parser.parseCreateCST() // parsing create statements
 
 			if err != nil {
 				fmt.Println(err.Error())
@@ -47,13 +47,13 @@ func ParseTokens(tokens []string) narytree.Node {
 
 // parseSelect is responsible for parsing the SELECT query type
 // SELECT (col1, col2, ...) FROM table_name WHERE column_name (operator) (value);
-func (p *Parser) parseSelect() error {
+func (p *Parser) parseSelectCST() error {
 	selectNode := narytree.Node{ Data: "SELECT", Children: []narytree.Node{} }
-	colListNode, err := p.parseColumnList() // should return a whole branch
-	fromNode := p.parseFromNode()
-	tableNameNode := p.parseTableName()
-	optionalWhereNode := p.parseOptionalWhere()
-	semicolonNode := p.parseSemicolon()
+	colListNode, err := p.parseColumnListCST() // should return a whole branch
+	fromNode := p.parseFromNodeCST()
+	tableNameNode := p.parseTableNameCST()
+	optionalWhereNode := p.parseOptionalWhereCST()
+	semicolonNode := p.parseSemicolonCST()
 	
 	if err != nil {
 		return err
@@ -68,7 +68,7 @@ func (p *Parser) parseSelect() error {
 	return nil
 }
 
-func (p *Parser) parseColumnList() (narytree.Node, error) {
+func (p *Parser) parseColumnListCST() (narytree.Node, error) {
 	nextToken := p.peek()
 
 	if nextToken == "FROM" {
@@ -78,21 +78,21 @@ func (p *Parser) parseColumnList() (narytree.Node, error) {
 	columnListNode := narytree.Node { Data: "<column_list>", Children: []narytree.Node{} }
 	p.incrementPosition()
 
-	columnName := p.parseColumnName()
+	columnName := p.parseColumnNameCST()
 	columnListNode.AddChild(columnName)
-	p.parseColumnListTail(&columnListNode)
+	p.parseColumnListTailCST(&columnListNode)
 
 	return columnListNode, nil
 }
 
-func (p *Parser) parseColumnName() narytree.Node {
+func (p *Parser) parseColumnNameCST() narytree.Node {
 	columnNameNonTerminal := narytree.Node{ Data: "<column_name>", Children: []narytree.Node{} }
 	columnName := narytree.Node{ Data: p.tokens[p.pos], Children: []narytree.Node{} }
 	columnNameNonTerminal.Children = append(columnNameNonTerminal.Children, columnName)
 	return columnNameNonTerminal
 }
 
-func (p *Parser) parseColumnListTail(parentNode *narytree.Node) narytree.Node {
+func (p *Parser) parseColumnListTailCST(parentNode *narytree.Node) narytree.Node {
 	columnListTailNode := narytree.Node{ Data: "<column_list_tail>", Children: []narytree.Node{} }
 	nextToken := p.peek()
 	
@@ -101,22 +101,22 @@ func (p *Parser) parseColumnListTail(parentNode *narytree.Node) narytree.Node {
 		commaNode := narytree.Node{ Data: p.tokens[p.pos], Children: []narytree.Node{} }
 		columnListTailNode.AddChild(commaNode)
 		p.incrementPosition()
-		columnName := p.parseColumnName()
+		columnName := p.parseColumnNameCST()
 		columnListTailNode.AddChild(columnName)
-		p.parseColumnListTail(&columnListTailNode)
+		p.parseColumnListTailCST(&columnListTailNode)
 	}
 	
 	parentNode.AddChild(columnListTailNode)
 	return columnListTailNode
 }
 
-func (p *Parser) parseFromNode() narytree.Node {
+func (p *Parser) parseFromNodeCST() narytree.Node {
 	p.incrementPosition()
 	fromNode := narytree.Node{ Data: p.tokens[p.pos], Children: []narytree.Node{} }
 	return fromNode
 }
 
-func (p *Parser) parseTableName() narytree.Node {
+func (p *Parser) parseTableNameCST() narytree.Node {
 	tableNameNoneTerminal := narytree.Node{ Data: "<table_name>", Children: []narytree.Node{} }
 	p.incrementPosition()
 	tableNameNode := narytree.Node{ Data: p.tokens[p.pos], Children: []narytree.Node{} }
@@ -124,7 +124,7 @@ func (p *Parser) parseTableName() narytree.Node {
 	return tableNameNoneTerminal
 }
 
-func (p *Parser) parseOptionalWhere() narytree.Node {
+func (p *Parser) parseOptionalWhereCST() narytree.Node {
 	optionalWhereNode := narytree.Node{ Data: "<optional_where>", Children: []narytree.Node{} }
 	
 	nextToken := p.peek()
@@ -136,13 +136,13 @@ func (p *Parser) parseOptionalWhere() narytree.Node {
 	whereNode := narytree.Node{ Data: p.tokens[p.pos], Children: []narytree.Node{} }
 	optionalWhereNode.AddChild(whereNode)
 	
-	conditionNode := p.parseCondition()
+	conditionNode := p.parseConditionCST()
 	optionalWhereNode.AddChild(conditionNode)
 	
 	return optionalWhereNode
 }
 
-func (p *Parser) parseCondition() narytree.Node {
+func (p *Parser) parseConditionCST() narytree.Node {
 	conditionNode := narytree.Node{ Data: "<condition>", Children: []narytree.Node{} }
 	
 	p.incrementPosition()
@@ -160,7 +160,7 @@ func (p *Parser) parseCondition() narytree.Node {
 	return conditionNode
 }
 
-func (p *Parser) parseSemicolon() narytree.Node {
+func (p *Parser) parseSemicolonCST() narytree.Node {
 	p.incrementPosition()
 	semicolonNode := narytree.Node{ Data: p.tokens[p.pos], Children: []narytree.Node{} }
 	return semicolonNode
@@ -168,52 +168,52 @@ func (p *Parser) parseSemicolon() narytree.Node {
 
 // parseInsert is responsible for parsing the INSERT query type
 // INSERT INTO table_name (col1, col2, ...) VALUES (val1, val2, ...);
-func (p *Parser) parseInsert() error {
+func (p *Parser) parseInsertCST() error {
 	insertNode := narytree.Node{ Data: "INSERT", Children: []narytree.Node{} }
 	
-	intoNode, err := p.parseIntoNode()
+	intoNode, err := p.parseIntoNodeCST()
 	if err != nil {
 		return err
 	}
 	
-	tableNameNode := p.parseTableName()
+	tableNameNode := p.parseTableNameCST()
 	
-	openParenNode1, err := p.parseOpenParen()
+	openParenNode1, err := p.parseOpenParenCST()
 	if err != nil {
 		return err
 	}
 	
-	insertColListNode, err := p.parseInsertColumnList()
+	insertColListNode, err := p.parseInsertColumnListCST()
 	if err != nil {
 		return err
 	}
 	
-	closeParenNode1, err := p.parseCloseParen()
+	closeParenNode1, err := p.parseCloseParenCST()
 	if err != nil {
 		return err
 	}
 	
-	valuesNode, err := p.parseValuesNode()
+	valuesNode, err := p.parseValuesNodeCST()
 	if err != nil {
 		return err
 	}
 	
-	openParenNode2, err := p.parseOpenParen()
+	openParenNode2, err := p.parseOpenParenCST()
 	if err != nil {
 		return err
 	}
 	
-	valueListNode, err := p.parseValueList()
+	valueListNode, err := p.parseValueListCST()
 	if err != nil {
 		return err
 	}
 	
-	closeParenNode2, err := p.parseCloseParen()
+	closeParenNode2, err := p.parseCloseParenCST()
 	if err != nil {
 		return err
 	}
 	
-	semicolonNode := p.parseSemicolon()
+	semicolonNode := p.parseSemicolonCST()
 	
 	p.rootNode.AddChild(insertNode)
 	p.rootNode.AddChild(intoNode)
@@ -229,7 +229,7 @@ func (p *Parser) parseInsert() error {
 	return nil
 }
 
-func (p *Parser) parseIntoNode() (narytree.Node, error) {
+func (p *Parser) parseIntoNodeCST() (narytree.Node, error) {
 	nextToken := p.peek()
 	if nextToken != "INTO" {
 		return narytree.Node{}, fmt.Errorf("expected 'INTO' but got '%s'", nextToken)
@@ -239,7 +239,7 @@ func (p *Parser) parseIntoNode() (narytree.Node, error) {
 	return intoNode, nil
 }
 
-func (p *Parser) parseOpenParen() (narytree.Node, error) {
+func (p *Parser) parseOpenParenCST() (narytree.Node, error) {
 	nextToken := p.peek()
 	if nextToken != "(" {
 		return narytree.Node{}, fmt.Errorf("expected '(' but got '%s'", nextToken)
@@ -249,7 +249,7 @@ func (p *Parser) parseOpenParen() (narytree.Node, error) {
 	return openParenNode, nil
 }
 
-func (p *Parser) parseCloseParen() (narytree.Node, error) {
+func (p *Parser) parseCloseParenCST() (narytree.Node, error) {
 	nextToken := p.peek()
 	if nextToken != ")" {
 		return narytree.Node{}, fmt.Errorf("expected ')' but got '%s'", nextToken)
@@ -259,7 +259,7 @@ func (p *Parser) parseCloseParen() (narytree.Node, error) {
 	return closeParenNode, nil
 }
 
-func (p *Parser) parseInsertColumnList() (narytree.Node, error) {
+func (p *Parser) parseInsertColumnListCST() (narytree.Node, error) {
 	nextToken := p.peek()
 	
 	if nextToken == ")" {
@@ -269,14 +269,14 @@ func (p *Parser) parseInsertColumnList() (narytree.Node, error) {
 	columnListNode := narytree.Node{ Data: "<column_list>", Children: []narytree.Node{} }
 	p.incrementPosition()
 	
-	columnName := p.parseColumnName()
+	columnName := p.parseColumnNameCST()
 	columnListNode.AddChild(columnName)
-	p.parseInsertColumnListTail(&columnListNode)
+	p.parseInsertColumnListTailCST(&columnListNode)
 	
 	return columnListNode, nil
 }
 
-func (p *Parser) parseInsertColumnListTail(parentNode *narytree.Node) {
+func (p *Parser) parseInsertColumnListTailCST(parentNode *narytree.Node) {
 	columnListTailNode := narytree.Node{ Data: "<column_list_tail>", Children: []narytree.Node{} }
 	nextToken := p.peek()
 	
@@ -285,15 +285,15 @@ func (p *Parser) parseInsertColumnListTail(parentNode *narytree.Node) {
 		commaNode := narytree.Node{ Data: p.tokens[p.pos], Children: []narytree.Node{} }
 		columnListTailNode.AddChild(commaNode)
 		p.incrementPosition()
-		columnName := p.parseColumnName()
+		columnName := p.parseColumnNameCST()
 		columnListTailNode.AddChild(columnName)
-		p.parseInsertColumnListTail(&columnListTailNode)
+		p.parseInsertColumnListTailCST(&columnListTailNode)
 	}
 	
 	parentNode.AddChild(columnListTailNode)
 }
 
-func (p *Parser) parseValuesNode() (narytree.Node, error) {
+func (p *Parser) parseValuesNodeCST() (narytree.Node, error) {
 	nextToken := p.peek()
 	if nextToken != "VALUES" {
 		return narytree.Node{}, fmt.Errorf("expected 'VALUES' but got '%s'", nextToken)
@@ -303,7 +303,7 @@ func (p *Parser) parseValuesNode() (narytree.Node, error) {
 	return valuesNode, nil
 }
 
-func (p *Parser) parseValueList() (narytree.Node, error) {
+func (p *Parser) parseValueListCST() (narytree.Node, error) {
 	nextToken := p.peek()
 	
 	if nextToken == ")" {
@@ -313,21 +313,21 @@ func (p *Parser) parseValueList() (narytree.Node, error) {
 	valueListNode := narytree.Node{ Data: "<value_list>", Children: []narytree.Node{} }
 	p.incrementPosition()
 	
-	value := p.parseValue()
+	value := p.parseValueCST()
 	valueListNode.AddChild(value)
-	p.parseValueListTail(&valueListNode)
+	p.parseValueListTailCST(&valueListNode)
 	
 	return valueListNode, nil
 }
 
-func (p *Parser) parseValue() narytree.Node {
+func (p *Parser) parseValueCST() narytree.Node {
 	valueNonTerminal := narytree.Node{ Data: "<value>", Children: []narytree.Node{} }
 	value := narytree.Node{ Data: p.tokens[p.pos], Children: []narytree.Node{} }
 	valueNonTerminal.AddChild(value)
 	return valueNonTerminal
 }
 
-func (p *Parser) parseValueListTail(parentNode *narytree.Node) {
+func (p *Parser) parseValueListTailCST(parentNode *narytree.Node) {
 	valueListTailNode := narytree.Node{ Data: "<value_list_tail>", Children: []narytree.Node{} }
 	nextToken := p.peek()
 	
@@ -336,9 +336,9 @@ func (p *Parser) parseValueListTail(parentNode *narytree.Node) {
 		commaNode := narytree.Node{ Data: p.tokens[p.pos], Children: []narytree.Node{} }
 		valueListTailNode.AddChild(commaNode)
 		p.incrementPosition()
-		value := p.parseValue()
+		value := p.parseValueCST()
 		valueListTailNode.AddChild(value)
-		p.parseValueListTail(&valueListTailNode)
+		p.parseValueListTailCST(&valueListTailNode)
 	}
 	
 	parentNode.AddChild(valueListTailNode)
@@ -346,32 +346,32 @@ func (p *Parser) parseValueListTail(parentNode *narytree.Node) {
 
 // parseCreate is responsible for parsing the CREATE query type
 // CREATE TABLE table_name (col1 datatype1, col2 datatype2, ...);
-func (p *Parser) parseCreate() error {
+func (p *Parser) parseCreateCST() error {
 	createNode := narytree.Node{ Data: "CREATE", Children: []narytree.Node{} }
 	
-	tableKeywordNode, err := p.parseTableKeyword()
+	tableKeywordNode, err := p.parseTableKeywordCST()
 	if err != nil {
 		return err
 	}
 
-	tableNameNode := p.parseTableName()
+	tableNameNode := p.parseTableNameCST()
 
-	openParenNode, err := p.parseOpenParen()
+	openParenNode, err := p.parseOpenParenCST()
 	if err != nil {
 		return err
 	}
 
-	columnDefsNode, err := p.parseColumnDefsList()
+	columnDefsNode, err := p.parseColumnDefsListCST()
 	if err != nil {
 		return err
 	}
 
-	closeParenNode, err := p.parseCloseParen()
+	closeParenNode, err := p.parseCloseParenCST()
 	if err != nil {
 		return err
 	}
 
-	semicolonNode := p.parseSemicolon()
+	semicolonNode := p.parseSemicolonCST()
 	
 	p.rootNode.AddChild(createNode)
 	p.rootNode.AddChild(tableKeywordNode)
@@ -383,7 +383,7 @@ func (p *Parser) parseCreate() error {
 	return nil
 }
 
-func (p *Parser) parseTableKeyword() (narytree.Node, error) {
+func (p *Parser) parseTableKeywordCST() (narytree.Node, error) {
 	nextToken := p.peek()
 	if nextToken != "TABLE" {
 		return narytree.Node{}, fmt.Errorf("expected 'TABLE' but got '%s'", nextToken)
@@ -393,7 +393,7 @@ func (p *Parser) parseTableKeyword() (narytree.Node, error) {
 	return tableKeywordNode, nil
 }
 
-func (p *Parser) parseColumnDefsList() (narytree.Node, error) {
+func (p *Parser) parseColumnDefsListCST() (narytree.Node, error) {
 	nextToken := p.peek()
 	
 	if nextToken == ")" {
@@ -402,14 +402,14 @@ func (p *Parser) parseColumnDefsList() (narytree.Node, error) {
 	
 	columnDefsNode := narytree.Node{ Data: "<column_defs_list>", Children: []narytree.Node{} }
 	
-	columnDef := p.parseColumnDef()
+	columnDef := p.parseColumnDefCST()
 	columnDefsNode.AddChild(columnDef)
-	p.parseColumnDefsListTail(&columnDefsNode)
+	p.parseColumnDefsListTailCST(&columnDefsNode)
 	
 	return columnDefsNode, nil
 }
 
-func (p *Parser) parseColumnDef() narytree.Node {
+func (p *Parser) parseColumnDefCST() narytree.Node {
 	columnDefNode := narytree.Node{ Data: "<column_def>", Children: []narytree.Node{} }
 	
 	p.incrementPosition()
@@ -417,13 +417,13 @@ func (p *Parser) parseColumnDef() narytree.Node {
 	columnDefNode.AddChild(columnNameNode)
 	
 	p.incrementPosition()
-	dataTypeNode := p.parseDataType()
+	dataTypeNode := p.parseDataTypeCST()
 	columnDefNode.AddChild(dataTypeNode)
 	
 	return columnDefNode
 }
 
-func (p *Parser) parseDataType() narytree.Node {
+func (p *Parser) parseDataTypeCST() narytree.Node {
 	dataTypeNonTerminal := narytree.Node{ Data: "<data_type>", Children: []narytree.Node{} }
 	dataType := narytree.Node{ Data: p.tokens[p.pos], Children: []narytree.Node{} }
 	dataTypeNonTerminal.AddChild(dataType)
@@ -446,7 +446,7 @@ func (p *Parser) parseDataType() narytree.Node {
 	return dataTypeNonTerminal
 }
 
-func (p *Parser) parseColumnDefsListTail(parentNode *narytree.Node) {
+func (p *Parser) parseColumnDefsListTailCST(parentNode *narytree.Node) {
 	columnDefsListTailNode := narytree.Node{ Data: "<column_defs_list_tail>", Children: []narytree.Node{} }
 	nextToken := p.peek()
 	
@@ -455,9 +455,9 @@ func (p *Parser) parseColumnDefsListTail(parentNode *narytree.Node) {
 		commaNode := narytree.Node{ Data: p.tokens[p.pos], Children: []narytree.Node{} }
 		columnDefsListTailNode.AddChild(commaNode)
 		
-		columnDef := p.parseColumnDef()
+		columnDef := p.parseColumnDefCST()
 		columnDefsListTailNode.AddChild(columnDef)
-		p.parseColumnDefsListTail(&columnDefsListTailNode)
+		p.parseColumnDefsListTailCST(&columnDefsListTailNode)
 	}
 	
 	parentNode.AddChild(columnDefsListTailNode)
