@@ -23,22 +23,32 @@ var transformationRules = map[string]string{
 	"SELECT": "DEL",
 	"FROM": "DEL",
 	"WHERE": "DEL",
+	"INSERT": "DEL",
+	"INTO": "DEL",
+	"VALUES": "DEL",
+	"CREATE": "DEL",
+	"TABLE": "DEL",		
 	",": "DEL",
 	";": "DEL",
+	"(": "DEL",
+	")": "DEL",
 }
 
 func ConvertToAST(root narytree.Node) narytree.Node {
-	queryType := root.Children[0].Data
 	astRoot := root
 
-	switch queryType {
-		case "SELECT":
-			for i := 0; i < len(astRoot.Children); i++ {
-				// if we don't have '&', we get a copy of the node and do the transformation on the copy.
-				// this means that the original node inside the slice is left unchanged.
-				node := &astRoot.Children[i]
-				transformNode(node)
-			}
+	i := 0
+	for i < len(astRoot.Children) {
+		if rule := transformationRules[astRoot.Children[i].Data]; rule == "DEL" {
+			astRoot.Children = append(astRoot.Children[:i], astRoot.Children[i+1:]...) // remove child
+			continue
+		}
+
+		// if we don't have '&', we get a copy of the node and do the transformation on the copy.
+		// this means that the original node inside the slice is left unchanged.
+		node := &astRoot.Children[i]
+		transformNode(node)
+		i++
 	}
 
 	return astRoot
@@ -51,7 +61,7 @@ func transformNode(node *narytree.Node) {
 	ruleName := transformationRules[node.Data]
 	
 	if ruleName == "DEL" {
-		node = nil
+		return
 	}
 	
 	if ruleName != "" {
