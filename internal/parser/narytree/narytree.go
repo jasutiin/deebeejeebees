@@ -1,6 +1,7 @@
 package narytree
 
 type Node struct {
+	Type     string
 	Data     string
 	Children []Node
 }
@@ -26,7 +27,11 @@ func (n *Node) printTreeHelper(indent int) {
 	for i := 0; i < indent; i++ {
 		print("  ")
 	}
-	println(n.Data)
+	if n.Type != "" {
+		println("[" + n.Type + "] " + n.Data)
+	} else {
+		println(n.Data)
+	}
 	for i := range n.Children {
 		n.Children[i].printTreeHelper(indent + 1)
 	}
