@@ -21,7 +21,11 @@ func main() {
 		}
 
 		fmt.Println("=== PARSE TREE ===")
-		astTree := parser.ParseTokensToCST(tokens)
+		cstTree := parser.ParseTokensToCST(tokens)
+		cstTree.PrintTree()
+
+		fmt.Println("=== AST ===")
+		astTree := parser.ConvertToAST(cstTree)
 		astTree.PrintTree()
 	}
 }
