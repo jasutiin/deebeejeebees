@@ -10,14 +10,14 @@ var transformationRules = map[string]string{
 	"<optional_where>": "WhereClause",
 	"<value_list>": "InsertValues",
 	"<column_defs_list>": "ColumnDefinitions",
+	"<column_def>": "ColumnDefinitionNode",
+	"<data_type>": "DataType",
 
 	"<column_name>": "DEL", 
 	"<column_list_tail>": "DEL",
 	"<condition>": "DEL",
 	"<value>": "DEL",
 	"<value_list_tail>": "DEL",
-	"<column_def>": "DEL",
-	"<data_type>": "DEL",
 	"<column_defs_list_tail>": "DEL",
 	
 	"SELECT": "DEL",
@@ -74,10 +74,29 @@ func collectIdentifiers(currentNode *narytree.Node) []narytree.Node {
 	
 	for _, child := range currentNode.Children {
 		ruleName := transformationRules[child.Data]
-		if ruleName == "" {
-			result = append(result, child)
-		} else {
-			result = append(result, collectIdentifiers(&child)...)
+
+		switch ruleName{
+			case "":
+				result = append(result, child)
+			case "ColumnDefinitionNode":
+				child.Data = ruleName
+				var newChildren []narytree.Node
+				for i, grandchild := range child.Children {
+					grandchildRule := transformationRules[grandchild.Data]
+					if i == 0 { // this is the name of the column
+						newChildren = append(newChildren, grandchild)
+					} else if grandchildRule == "DataType" {
+						grandchild.Data = "DataType"
+						newChildren = append(newChildren, grandchild)
+					}
+				}
+				child.Children = newChildren
+				result = append(result, child)
+			case "DataType":
+				child.Data = ruleName
+				result = append(result, child)
+			default:
+				result = append(result, collectIdentifiers(&child)...)
 		}
 	}
 
